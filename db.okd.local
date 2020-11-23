@@ -11,25 +11,25 @@ $TTL    604800
     IN      NS      okd4-services
 
 ; name servers - A records
-okd4-services.okd.local.          IN      A       192.168.1.210
+okd4-services.okd.local.          IN      A       10.10.10.2
 
 ; OpenShift Container Platform Cluster - A records
-okd4-bootstrap.lab.okd.local.        IN      A      192.168.1.200
-okd4-control-plane-1.lab.okd.local.        IN      A      192.168.1.201
-okd4-control-plane-2.lab.okd.local.         IN      A      192.168.1.202
-okd4-control-plane-3.lab.okd.local.         IN      A      192.168.1.203
-okd4-compute-1.lab.okd.local.        IN      A      192.168.1.204
-okd4-compute-2.lab.okd.local.        IN      A      192.168.1.205
+okd4-bootstrap.lab.okd.local.        IN      A      10.10.10.200
+okd4-control-plane-1.lab.okd.local.        IN      A      10.10.10.201
+okd4-control-plane-2.lab.okd.local.         IN      A      10.10.10.202
+okd4-control-plane-3.lab.okd.local.         IN      A      10.10.10.203
+okd4-compute-1.lab.okd.local.        IN      A      10.10.10.204
+okd4-compute-2.lab.okd.local.        IN      A      10.10.10.205
 
 ; OpenShift internal cluster IPs - A records
-api.lab.okd.local.    IN    A    192.168.1.210
-api-int.lab.okd.local.    IN    A    192.168.1.210
-*.apps.lab.okd.local.    IN    A    192.168.1.210
-etcd-0.lab.okd.local.    IN    A     192.168.1.201
-etcd-1.lab.okd.local.    IN    A     192.168.1.202
-etcd-2.lab.okd.local.    IN    A    192.168.1.203
-console-openshift-console.apps.lab.okd.local.     IN     A     192.168.1.210
-oauth-openshift.apps.lab.okd.local.     IN     A     192.168.1.210
+api.lab.okd.local.    IN    A    10.10.10.210
+api-int.lab.okd.local.    IN    A    10.10.10.210
+*.apps.lab.okd.local.    IN    A    10.10.10.210
+etcd-0.lab.okd.local.    IN    A     10.10.10.201
+etcd-1.lab.okd.local.    IN    A     10.10.10.202
+etcd-2.lab.okd.local.    IN    A    10.10.10.203
+console-openshift-console.apps.lab.okd.local.     IN     A     10.10.10.210
+oauth-openshift.apps.lab.okd.local.     IN     A     10.10.10.210
 
 ; OpenShift internal cluster IPs - SRV records
 _etcd-server-ssl._tcp.lab.okd.local.    86400     IN    SRV     0    10    2380    etcd-0.lab
