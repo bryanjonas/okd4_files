@@ -22,14 +22,14 @@ okd4-compute-1.lab.okd.local.        IN      A      10.10.10.204
 okd4-compute-2.lab.okd.local.        IN      A      10.10.10.205
 
 ; OpenShift internal cluster IPs - A records
-api.lab.okd.local.    IN    A    10.10.10.210
-api-int.lab.okd.local.    IN    A    10.10.10.210
-*.apps.lab.okd.local.    IN    A    10.10.10.210
+api.lab.okd.local.    IN    A    10.10.10.2
+api-int.lab.okd.local.    IN    A    10.10.10.2
+*.apps.lab.okd.local.    IN    A    10.10.10.2
 etcd-0.lab.okd.local.    IN    A     10.10.10.201
 etcd-1.lab.okd.local.    IN    A     10.10.10.202
 etcd-2.lab.okd.local.    IN    A    10.10.10.203
-console-openshift-console.apps.lab.okd.local.     IN     A     10.10.10.210
-oauth-openshift.apps.lab.okd.local.     IN     A     10.10.10.210
+console-openshift-console.apps.lab.okd.local.     IN     A     10.10.10.2
+oauth-openshift.apps.lab.okd.local.     IN     A     10.10.10.2
 
 ; OpenShift internal cluster IPs - SRV records
 _etcd-server-ssl._tcp.lab.okd.local.    86400     IN    SRV     0    10    2380    etcd-0.lab
