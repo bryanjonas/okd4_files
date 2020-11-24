@@ -43,6 +43,8 @@ sudo firewall-cmd --permanent --add-port=53/udp
 sudo firewall-cmd --reload
 ```
 
+The services VM should be set as the DNS server for the LAN on pfSense.
+
 ### Loadbalancer
 We are going to use HAProxy as the load balancer between the control planes and between the compute nodes. The services VM will act as the load balancer and redirect requests to the various APIs to the proper nodes.
 
@@ -110,8 +112,31 @@ sudo mv Download/fcos.raw.xz.sign /var/www/html/
 sudo chown -R apache: /var/www/html/
 sudo chmod -R 755 /var/www/html/
 ```
+The services VM should now be staged for the build of the nodes.
 
-## DHCP Reservations
-You need to make several DHCP reservations to ensure our various machine end up at particular IPs.
+## Bootstrap/Control Plane/Compute Nodes
+The basic cluster is supposed to have one bootstrap, three control planes, and two compute nodes. For the purposes of building the cluster in Proxmox,
+I have all the specs the same for the machines: 4 cores, 8 GB RAM and 32 GB of storage.
 
-10.10.10.2 -> okd4-services
+Once these VMs are built, we need to make DHCP reservations for all of the nodes in pfSense:
+
+| IP | Node |
+|----|------|
+| 10.10.10.2 | okd4-services |
+| 10.10.10.200 | okd4-bootstrap |
+| 10.10.10.201 | okd4-control-plane-1 |
+| 10.10.10.202 | okd4-control-plane-2 |
+| 10.10.10.203 | okd4-control-plane-3 |
+| 10.10.10.204 | okd4-compute-1 |
+| 10.10.10.205 | okd4-compute-2 |
+
+### Bootstrap
+The bootstrap node serves as a jumping-off point for all of the control planes and isn't necessary once the control planes are stood up (they
+act as the bootstrap if any more nodes are added in the future).
+
+To get the bootstrap going, you boot the VM and then hit tab when the first CoreOS screen appears so you can add few boot parameters:
+```{bash}
+coreos.inst.install_dev=/dev/sda 
+coreos.inst.image_url=http://10.10.10.2:8080/okd4/fcos.raw.xz 
+coreos.inst.ignition_url=http://10.10.10.2:8080/okd4/bootstrap.ign
+```
