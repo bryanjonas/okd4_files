@@ -25,6 +25,7 @@ duties as opposed to something I set up.
 I enabled the pfSense DNS resolver and ensured the WAN DNS server address was pointed at my home network DNS server. Following that
 I set up several DNS reservations to ensure that APIs and endpoints were resolved to the correct machines.
 
+Host Overrides:
 | Host | Parent Domain | IP |
 |------|---------------|----|
 | Name Servers | | |
@@ -36,11 +37,11 @@ I set up several DNS reservations to ensure that APIs and endpoints were resolve
 | Cluster IPs | | |
 | api | lab.okd.local 10.10.10.2 |
 | api-int | lab.okd.local | 10.10.10.2 |
-| * | apps.lab.okd.local | 10.10.10.2 |
 | etcd-0 | lab.okd.local | 10.10.10.201 |
 | console-openshift-console | apps.lab.okd.local | 10.10.10.2 |
 | oauth-openshift | apps.lab.okd.local | 10.10.10.2 |
 
+Domain Overrides:
 | Domain | IP |
 |--------|----|
 | apps.lab.okd.local | 10.10.10.2 |
@@ -51,6 +52,20 @@ I'm going to leave these records here for later in case I add extra machines.
 | etcd-1 | lab.okd.local | 10.10.10.202 |
 | etcd-2 | lab.okd.local | 10.10.10.203 |
 
+I had to add a few "custom options" as well in the pfSense GUI:
+```{bash}
+server:
+local-data: "_etcd-server-ssl._tcp.lab.okd.local.    86400     IN    SRV     0    10    2380    etcd-0.lab"
+local-data: "200    IN    PTR    okd4-bootstrap.lab.okd.local."
+```
+200    IN    PTR    okd4-bootstrap.lab.okd.local.
+201    IN    PTR    okd4-control-plane-1.lab.okd.local.
+202    IN    PTR    okd4-control-plane-2.lab.okd.local.
+203    IN    PTR    okd4-control-plane-3.lab.okd.local.
+204    IN    PTR    okd4-compute-1.lab.okd.local.
+205    IN    PTR    okd4-compute-2.lab.okd.local.
+210    IN    PTR    api.lab.okd.local.
+210    IN    PTR    api-int.lab.okd.local.
 ### DHCP Reservations
 You need to make several DHCP reservations to ensure our various machine end up at particular IPs.
 
