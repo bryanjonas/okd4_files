@@ -1,11 +1,11 @@
 Based on the popular tutorial here: https://itnext.io/guide-installing-an-okd-4-5-cluster-508a2631cbee
 
-### Cluster Internal Network
+## Cluster Internal Network
 The first step is establishing an internal network (VLAN) for cluster communications. On Proxmox I did this by an 
 additional virtual bridge that was unattached to any real interface. I set this CIDR as 10.10.10.1/24 which will be
 used for all cluster-internal IPs.
 
-### pfSense VM
+## pfSense VM
 I created a fairly low-power VM to install pfSense to utilize as the DHCP server as well as the router between 
 external and internal communications. For my particular set-up, the WAN is *vtnet0* and the *vtnet1* for the LAN.
 
@@ -14,59 +14,36 @@ external and internal communications. For my particular set-up, the WAN is *vtne
 |WAN (wan) | vtnet0 | v4: 192.168.1.100/24|    
 |LAN (lan) | vtnet1  | v4: 10.10.10.1/24|
 
-### Services VM
+**Important**: Go to SYSTEM -> ADVANCED -> NETWORKING and check the "Disable hardware checksum offload" if you like to get on the internet.
+
+## Services VM
 The next step is to create a VM that will host several of the services necessary for  establishing our cluster. I chose to
 use CentOS to complement my Red Hat styling for the cluster (and because that's what the tutorial used). As opposed to the 
-tutorial, however, I chose to only hook up the cluster internal virtual bridge to this machine. I decided to try to let pfSense
-handle the DNS duties instead of the services VM. Call me crazy for wanting the routing software to be in charge of the routing
-duties as opposed to something I set up.
+tutorial, however, I chose to only hook up the cluster internal virtual bridge to this machine. 
 
-### DNS Resolver
-I enabled the pfSense DNS resolver and ensured the WAN DNS server address was pointed at my home network DNS server. Following that
-I set up several DNS reservations to ensure that APIs and endpoints were resolved to the correct machines.
+### DNS Server
+This first thing to install is *bind* as the DNS server for the cluster internal communication. 
 
-Host Overrides:
-| Host | Parent Domain | IP |
-|------|---------------|----|
-| Name Servers | | |
-| okd4-service | okd.local | 10.10.10.2 |
-| Platform IPs | | |
-| okd4-bootstrap | lab.okd.local | 10.10.10.200 |
-| okd4-compute-1 | lab.okd.local | 10.10.10.204 |
-| okd4-control-plane-1 | lba.okd.local | 10.10.10.201 |
-| Cluster IPs | | |
-| api | lab.okd.local 10.10.10.2 |
-| api-int | lab.okd.local | 10.10.10.2 |
-| etcd-0 | lab.okd.local | 10.10.10.201 |
-| console-openshift-console | apps.lab.okd.local | 10.10.10.2 |
-| oauth-openshift | apps.lab.okd.local | 10.10.10.2 |
-
-Domain Overrides:
-| Domain | IP |
-|--------|----|
-| apps.lab.okd.local | 10.10.10.2 |
-
-I'm going to leave these records here for later in case I add extra machines.
-| Host | Parent Domain | IP |
-|------|---------------|----|
-| etcd-1 | lab.okd.local | 10.10.10.202 |
-| etcd-2 | lab.okd.local | 10.10.10.203 |
-
-I had to add a few "custom options" as well in the pfSense GUI:
 ```{bash}
-server:
-local-data: "_etcd-server-ssl._tcp.lab.okd.local.    86400     IN    SRV     0    10    2380    etcd-0.lab"
-local-data: "200    IN    PTR    okd4-bootstrap.lab.okd.local."
+sudo dnf -y install bind bind-utils git
+git clone https://github.com/bryanjonas/okd4_files
 ```
-200    IN    PTR    okd4-bootstrap.lab.okd.local.
-201    IN    PTR    okd4-control-plane-1.lab.okd.local.
-202    IN    PTR    okd4-control-plane-2.lab.okd.local.
-203    IN    PTR    okd4-control-plane-3.lab.okd.local.
-204    IN    PTR    okd4-compute-1.lab.okd.local.
-205    IN    PTR    okd4-compute-2.lab.okd.local.
-210    IN    PTR    api.lab.okd.local.
-210    IN    PTR    api-int.lab.okd.local.
-### DHCP Reservations
+I moved a couple files from this cloned repository into position before starting the DNS server. *Note:* My home network requires the use
+of my PiHole DNS servers so I've got those as the forwarders in the **named.conf** file. 
+
+```{bash}
+sudo cp named.conf /etc/named.conf
+sudo cp named.conf.local /etc/named/
+sudo mkdir /etc/named/zones
+sudo cp db* /etc/named/zones
+
+sudo systemctl enabled named
+sudo systemctl start named
+```
+### Loadbalancer
+
+
+## DHCP Reservations
 You need to make several DHCP reservations to ensure our various machine end up at particular IPs.
 
 10.10.10.2 -> okd4-services
