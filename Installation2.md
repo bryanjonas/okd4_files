@@ -1,34 +1,61 @@
-https://www.youtube.com/watch?v=d03xg2PKOPg
-## Services VM
-The next step is to create a VM that will host several of the services necessary for  establishing our cluster. I chose to
-use CentOS to complement my Red Hat styling for the cluster (and because that's what the tutorial used). As opposed to the 
-tutorial, however, I chose to only hook up the cluster internal virtual bridge to this machine. 
+# Establishing a OKD Cluster
 
+These instructions are a combination of instructions taken from:
+* https://itnext.io/guide-installing-an-okd-4-5-cluster-508a2631cbee
+* https://www.youtube.com/watch?v=d03xg2PKOPg
 
-Two interfaces:
-ens18 - external network - 192.168.100.1
-ens19 - internal network - 10.10.10.1 - "use only for resource on its network"
+## Services VM (okd4-services)
+The first step is to create a VM that will host several of the services necessary for establishing our cluster. I chose to
+use CentOS to complement my Red Hat styling for the cluster (and because that's what the tutorial used). 
 
-Set an internal and external firewall zone for each of the connections
+This VM will have to NICs: one for external communication and one for cluster-internal communication. Some important settings for the interfaces:
+
+**External** (ens18):
+* IPv4 Address: 192.168.1.100 (Home LAN reservation)
+* Gateway: 192.168.1.1
+* DNS: 127.0.0.1 (Wait to set this until DNS server is running)
+
+**Internal** (ens19):
+* IPv4 Address: 10.10.10.1 
+* Gateway: 10.10.10.1
+* DNS: 127.0.0.1
+* "Use this connection only for resources on its network"
+
+### Intial Firewall Configuration
+We want to establish two firewall zones to go along with our two networks. It should be clear which interface is associated with each zone.
 ```{bash}
-nmcli connection modify ens18 connection.zone external
-nmcli connection modify ens19 connection.zone internal
-```
+sudo nmcli connection modify ens18 connection.zone external
+sudo nmcli connection modify ens19 connection.zone internal
 
-Add masquerade to both zones ***Look up***
+#Check settings
+sudo firewall-cmd --get-active-zones
+```
+In order to allow clients on the internal network to communicate with outside (to grab images and other tasks), we turn on masquerading on 
+both interfaces and check to ensure that IP forwarding is turned on.
 ```{bash}
 firewall-cmd --zone=external --add-masquerade --permanent
 firewall-cmd --zone=internal --add-masquerade --permanent
 
+#Should print '1' to screen
+cat /proc/sys/net/ipv4/ip_forwarding
 ```
-### DNS Server
-This first thing to install is *bind* as the DNS server for the cluster internal communication. 
+
+### Download Config Files
+We'll need the configuration files included in this repository.
 
 ```{bash}
-sudo dnf -y install bind bind-utils git
+sudo dnf install -y git
 git clone https://github.com/bryanjonas/okd4_files
 ```
-I moved a couple files from this cloned repository into position before starting the DNS server. *Note:* My home network requires the use
+
+### DNS Server
+This next thing to install is *bind* as the DNS server for the cluster internal communication. 
+
+```{bash}
+sudo dnf -y install bind bind-utils
+```
+
+We then move a couple files from our cloned repository into position before starting the DNS server. *Note:* My home network requires the use
 of my PiHole DNS servers so I've got those as the forwarders in the **named.conf** file. 
 
 ```{bash}
@@ -37,13 +64,13 @@ sudo cp named.conf.local /etc/named/
 sudo mkdir /etc/named/zones
 sudo cp db* /etc/named/zones
 
+sudo firewall-cmd --permanent --zone=internal --add-port=53/udp
+sudo firewall-cmd --reload
 sudo systemctl enabled named
 sudo systemctl start named
-firewall-cmd --permanent --zone=internal --add-port=53/udp
-firewall-cmd --reload
 ```
 
-Update the ens18 (external) to use 127.0.0.1 for LAN
+*Remember to update the ens18 (external) to use 127.0.0.1 for DNS.*
 
 Install DHCP Server
 ```{bash}
@@ -84,10 +111,10 @@ sudo dnf install -y httpd
 sudo sed -i 's/Listen 80/Listen 8080/' /etc/httpd/conf/httpd.conf
 
 sudo setsebool -P httpd_read_user_content 1
-sudo systemctl enable httpd
-sudo systemctl start httpd
 sudo firewall-cmd --permanent --zone=internal --add-port=8080/tcp
 sudo firewall-cmd --reload
+sudo systemctl enable httpd
+sudo systemctl start httpd
 ```
 
 The tools for building the node configurations are downloaded from the OKD Release page (https://github.com/openshift/okd/releases). 
