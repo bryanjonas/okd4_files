@@ -26,4 +26,8 @@ Update the ens18 (external) to use 127.0.0.1 for LAN
 Install DHCP Server
 ```{bash}
 sudo dnf install -y dhcp-server 
+sudo cp dhcpd.conf /etc/dhcp/dhcpd.conf
+sudo firewall-cmd --permanent --zone=internal --add-service=dhcp
+sudo firewall-cmd --reload
+sudo systemctl enable dhcpd
 ```
