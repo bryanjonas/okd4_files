@@ -9,5 +9,5 @@ spec:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
   nfs:
-    path: /var/nfsshare/registry
-    server: 10.10.10.210 
+    path: /shares/registry
+    server: 10.10.10.1 
