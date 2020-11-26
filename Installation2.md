@@ -72,7 +72,10 @@ sudo systemctl start named
 
 *Remember to update the ens18 (external) to use 127.0.0.1 for DNS.*
 
-Install DHCP Server
+### DHCP Server
+We need to provide a DHCP server for the internal network clients. Be sure that the MAC addresses in the configuration file match those of your
+clients. 
+
 ```{bash}
 sudo dnf install -y dhcp-server 
 sudo cp dhcpd.conf /etc/dhcp/dhcpd.conf
@@ -103,7 +106,7 @@ sudo firewall-cmd --reload
 ```
 
 ### Webserver
-The next thing that the services will provide is a webserver to host the image and "ignition" files for the CoreOS nodes.
+The next thing that the services VM will provide is a webserver to host the image and "ignition" files for the CoreOS nodes.
 
 ```{bash}
 sudo dnf install -y httpd
@@ -149,7 +152,6 @@ sudo mv Download/fcos.raw.xz.sign /var/www/html/
 sudo chown -R apache: /var/www/html/
 sudo chmod -R 755 /var/www/html/
 ```
-The services VM should now be staged for the build of the nodes.
 
 ### Set up Registry Share
 
@@ -163,15 +165,99 @@ sudo chown -R nobody:nogroup /shares/registry
 sudo chmod -R 777 /shares/registry
 echo "/shares/registry 10.10.10.1/24(rw,sync,root_squash,no_subtree_check,no_wdelay)" | sudo tee /etc/exports
 
+sudo setsebool -P nfs_export_all_rw 1
+sudo systemctl restart nfs-server
 sudo firewall-cmd --permanent --zone=internal --add-service=mountd
 sudo firewall-cmd --permanent --zone=internal --add-service=rpc-bind
 sudo firewall-cmd --permanent --zone=internal --add-service=nfs
 sudo firewall-cmd --reload
 ```
+The services VM should now be staged for the build of the nodes.
+
+## Setting up the Bootstrap, Control Planes, and Workers
+The basic cluster is supposed to have one bootstrap, three control planes, and two compute nodes. For the purposes of building the cluster in Proxmox,
+I have all the specs the same for the machines: 4 cores, 16 GB RAM and 120 GB of storage.
+
+The DHCP server provides these IP addresses to our nodes:
+| IP | Node |
+|----|------|
+| 10.10.10.2 | okd4-services |
+| 10.10.10.200 | okd4-bootstrap |
+| 10.10.10.201 | okd4-control-plane-1 |
+| 10.10.10.202 | okd4-control-plane-2 |
+| 10.10.10.203 | okd4-control-plane-3 |
+| 10.10.10.204 | okd4-compute-1 |
+| 10.10.10.205 | okd4-compute-2 |
 
 To get the bootstrap going, you boot the VM and then hit tab when the first CoreOS screen appears so you can add few boot parameters:
 ```{bash}
 coreos.inst.install_dev=/dev/sda 
-coreos.inst.image_url=http://10.10.10.2:8080/okd4/fcos.raw.xz 
-coreos.inst.ignition_url=http://10.10.10.2:8080/okd4/bootstrap.ign
+coreos.inst.image_url=http://10.10.10.1:8080/okd4/fcos.raw.xz 
+coreos.inst.ignition_url=http://10.10.10.1:8080/okd4/bootstrap.ign
 ```
+
+The parameters for the control planes are nearly the same:
+```{bash}
+coreos.inst.install_dev=/dev/sda 
+coreos.inst.image_url=http://10.10.10.1:8080/okd4/fcos.raw.xz 
+coreos.inst.ignition_url=http://10.10.10.1:8080/okd4/master.ign
+```
+
+As are the parameters for the workers:
+```{bash}
+coreos.inst.install_dev=/dev/sda 
+coreos.inst.image_url=http://10.10.10.1:8080/okd4/fcos.raw.xz 
+coreos.inst.ignition_url=http://10.10.10.1:8080/okd4/worker.ign
+```
+
+It's best to start the bootstrap, the control planes and then the workers. Each node will boot and then download the image from our webserver, monitor the process until you see this download. Chances are good if you get there (and everything else is typed in correctly) that the process will succeed.
+
+You can use this command (on the services VM) to monitor the build process but I find that it is best to watch the HAProxy stats page (http://10.10.10.1:9000) for the clients to come up (and go down and come up again).
+
+```{bash}
+openshift-install --dir=install_dir/ wait-for bootstrap-complete --log-level=info
+```
+
+Once the control planes are up you will get a message that the bootstrap VM should be taken down. You will also see it go dark on the HAProxy stats page. You can comment out the corresponding entries in the HAProxy configuration file and power off the VM.
+
+The worker nodes won't come up until you approve "certificate signing requests" (csr) so you need to use the following commands to see and approve these.
+```{bash}
+export KUBECONFIG=~/install_dir/auth/kubeconfig
+oc whoami
+oc get nodes
+
+oc get csr
+oc get csr -o go-template='{{range .items}}{{if not .status}}{{.metadata.name}}{{"\n"}}{{end}}{{end}}' | xargs oc adm certificate approve
+```
+
+You can watch the **get nodes** screen for the workers to come on line. Check the **get csr** list for any new approvals that are necessary. Once all the nodes are online you can check the HAProxy stats to ensure that all servers are reachable on all APIs.
+
+## Image Registry
+We need to provide storage to the Image Registry Operator on the NFS share of our service machine. We've already prepped the services VM side so we need to use the Registry PV manifest included in this repository.
+
+```{bash}
+oc create -f okd4_files/registry_pv.yaml
+oc get pv
+```
+
+We then open the Image Registry Operator and change a couple thing in the file (see below):
+```{bash}
+#You can add this line if you're a noob like me
+export OC_EDITOR="nano"
+
+oc edit configs.imageregistry.operator.openshift.io
+```
+```{bash}
+managementState: Managed (was Removed)
+
+storage:
+    pvc:     (These two
+      claim:    lines are added)
+```
+
+## Access the Interface
+You can access the interface at: https://console-openshift-console.apps.lab.okd.local/
+
+If you're watching the *openshift-install* logging of the cluster install you should see this link as well as the username and password pop out at the end. If not, you can get the password from the **~/install_dir/auth/kubeadmin-password** file.
+
+Enjoy!
