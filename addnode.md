@@ -26,3 +26,12 @@ sudo nano /etc/haproxy/haproxy.cfg
 
 sudo systemctl restart haproxy
 ```
+
+### Approve CSR
+As with the original nodes, a series of certificate signing requests will come through that must be approved.
+```{bash}
+#From the Services VM
+oc get csr
+
+oc set csr -o name | xargs oc adm certificate approve
+```
