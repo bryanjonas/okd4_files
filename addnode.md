@@ -22,8 +22,7 @@ sudo systemctl restart named
 ### HAProxy
 ```{bash}
 sudo nano /etc/haproxy/haproxy.cfg
-#Add line under the K8S API Backend
-#Add line under the Machine Congif Server Backend
+#Add line(s) for appropriate backends
 
 sudo systemctl restart haproxy
 ```
