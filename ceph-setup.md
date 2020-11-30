@@ -1,3 +1,5 @@
+**Unable to get working with current setup due to other node issues. Work in progress.**
+
 ## Node Setup
 We will use each worker node as a node in the Ceph cluster. To start we will have to make a few changes to the **cluster.yml** file:
 
